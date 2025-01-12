@@ -1,47 +1,133 @@
 -- // Configuration
 getgenv().Prediction = 0.072
-getgenv().Smoothness = 0.07
+getgenv().Smoothness = 0.1
 getgenv().JumpOffset = 0.15
 getgenv().FallOffset = 0.15
 
--- // Variables
-local UIS = game:GetService("UserInputService")
+-- // Services
 local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
-local Mouse = LocalPlayer:GetMouse()
 local Camera = workspace.CurrentCamera
-local CamLockEnabled = false
-local Target
+local Target = nil
+local Locked = false
 
--- // GUI Creation
-local ScreenGui = Instance.new("ScreenGui", game.CoreGui)
-local ToggleCircle = Instance.new("Frame", ScreenGui)
-local UICorner = Instance.new("UICorner", ToggleCircle)
-local UIStroke = Instance.new("UIStroke", ToggleCircle)
+-- // UI for Selecting Version
+local VersionSelector = Instance.new("ScreenGui", game.CoreGui)
+VersionSelector.Name = "VersionSelector"
 
-ToggleCircle.Name = "ToggleCircle"
-ToggleCircle.Size = UDim2.new(0, 50, 0, 50)
-ToggleCircle.BackgroundColor3 = Color3.fromRGB(100, 100, 255)
-ToggleCircle.Position = UDim2.new(0.5, -25, 0.5, -25)
-ToggleCircle.Active = true
-ToggleCircle.Draggable = true
+local LoadMobile = Instance.new("TextButton", VersionSelector)
+LoadMobile.Text = "Load Mobile Version"
+LoadMobile.Size = UDim2.new(0, 200, 0, 50)
+LoadMobile.Position = UDim2.new(0.5, -100, 0.4, -25)
+LoadMobile.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+LoadMobile.TextColor3 = Color3.fromRGB(255, 255, 255)
+LoadMobile.Font = Enum.Font.SourceSans
+LoadMobile.TextSize = 20
 
+local LoadPC = Instance.new("TextButton", VersionSelector)
+LoadPC.Text = "Load PC Version"
+LoadPC.Size = UDim2.new(0, 200, 0, 50)
+LoadPC.Position = UDim2.new(0.5, -100, 0.5, -25)
+LoadPC.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+LoadPC.TextColor3 = Color3.fromRGB(255, 255, 255)
+LoadPC.Font = Enum.Font.SourceSans
+LoadPC.TextSize = 20
+
+-- // Notification System
+local Notification = Instance.new("ScreenGui")
+Notification.Name = "Notification"
+Notification.ResetOnSpawn = false
+Notification.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
+
+local LockedOn = Instance.new("TextLabel")
+LockedOn.Name = "LockedOn"
+LockedOn.Text = "Unlocked"
+LockedOn.Size = UDim2.new(0, 100, 0, 20)
+LockedOn.Position = UDim2.new(0, 0, 0, 0)
+LockedOn.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+LockedOn.BackgroundTransparency = 0.5
+LockedOn.BorderSizePixel = 0
+LockedOn.Font = Enum.Font.SourceSans
+LockedOn.TextSize = 14
+LockedOn.TextColor3 = Color3.fromRGB(255, 0, 0)
+LockedOn.Parent = Notification
+
+local TargetName = Instance.new("TextLabel")
+TargetName.Name = "TargetName"
+TargetName.Text = "Target: None"
+TargetName.Size = UDim2.new(0, 200, 0, 20)
+TargetName.Position = UDim2.new(0, 100, 0, 0)
+TargetName.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+TargetName.BackgroundTransparency = 0.5
+TargetName.BorderSizePixel = 0
+TargetName.Font = Enum.Font.SourceSans
+TargetName.TextSize = 14
+TargetName.TextColor3 = Color3.fromRGB(255, 255, 255)
+TargetName.Parent = Notification
+
+local DisplayName = Instance.new("TextLabel")
+DisplayName.Name = "DisplayName"
+DisplayName.Text = "Display Name: None"
+DisplayName.Size = UDim2.new(0, 200, 0, 20)
+DisplayName.Position = UDim2.new(0, 100, 0, 20)
+DisplayName.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+DisplayName.BackgroundTransparency = 0.5
+DisplayName.BorderSizePixel = 0
+DisplayName.Font = Enum.Font.SourceSans
+DisplayName.TextSize = 14
+DisplayName.TextColor3 = Color3.fromRGB(255, 255, 255)
+DisplayName.Parent = Notification
+
+-- // Editable Smoothness and Prediction UI
+local SmoothnessLabel = Instance.new("TextBox", Notification)
+SmoothnessLabel.Text = "Smoothness: " .. tostring(getgenv().Smoothness)
+SmoothnessLabel.Size = UDim2.new(0, 200, 0, 30)
+SmoothnessLabel.Position = UDim2.new(0.5, -100, 0.6, -25)
+SmoothnessLabel.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+SmoothnessLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+SmoothnessLabel.Font = Enum.Font.SourceSans
+SmoothnessLabel.TextSize = 16
+SmoothnessLabel.ClearTextOnFocus = false
+SmoothnessLabel.Active = true
+SmoothnessLabel.Draggable = true
+
+local PredictionLabel = Instance.new("TextBox", Notification)
+PredictionLabel.Text = "Prediction: " .. tostring(getgenv().Prediction)
+PredictionLabel.Size = UDim2.new(0, 200, 0, 30)
+PredictionLabel.Position = UDim2.new(0.5, -100, 0.7, -25)
+PredictionLabel.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+PredictionLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+PredictionLabel.Font = Enum.Font.SourceSans
+PredictionLabel.TextSize = 16
+PredictionLabel.ClearTextOnFocus = false
+PredictionLabel.Active = true
+PredictionLabel.Draggable = true
+
+-- // Mobile UI
+local Circle = Instance.new("TextButton")
+local UICorner = Instance.new("UICorner", Circle)
+Circle.Name = "MobileToggle"
+Circle.Text = "🔒"
+Circle.TextColor3 = Color3.fromRGB(255, 255, 255)
+Circle.TextSize = 20
+Circle.Font = Enum.Font.SourceSansBold
+Circle.Size = UDim2.new(0, 50, 0, 50)
+Circle.Position = UDim2.new(0.5, -25, 0.8, -25)
+Circle.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+Circle.Visible = false
+Circle.Active = true
+Circle.Draggable = true
 UICorner.CornerRadius = UDim.new(1, 0)
-UIStroke.Thickness = 2
-UIStroke.Color = Color3.fromRGB(255, 255, 255)
+Circle.Parent = Notification
 
--- // Toggle CamLock
-ToggleCircle.MouseButton1Click:Connect(function()
-    CamLockEnabled = not CamLockEnabled
-    ToggleCircle.BackgroundColor3 = CamLockEnabled and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
-end)
-
--- // CamLock Logic
+-- // Functions
 local function GetClosestPlayer()
     local ClosestDistance, ClosestPlayer = math.huge, nil
     for _, Player in pairs(Players:GetPlayers()) do
         if Player ~= LocalPlayer and Player.Character and Player.Character:FindFirstChild("HumanoidRootPart") then
-            local Distance = (Mouse.Hit.p - Player.Character.HumanoidRootPart.Position).Magnitude
+            local Distance = (Camera.CFrame.Position - Player.Character.HumanoidRootPart.Position).Magnitude
             if Distance < ClosestDistance then
                 ClosestDistance = Distance
                 ClosestPlayer = Player
@@ -51,10 +137,7 @@ local function GetClosestPlayer()
     return ClosestPlayer
 end
 
-game:GetService("RunService").RenderStepped:Connect(function()
-    if not CamLockEnabled then return end
-    Target = GetClosestPlayer()
-
+local function LockOntoPlayer()
     if Target and Target.Character and Target.Character:FindFirstChild("HumanoidRootPart") then
         local TargetPart = Target.Character.HumanoidRootPart
         local TargetPos = TargetPart.Position + (TargetPart.Velocity * getgenv().Prediction)
@@ -66,5 +149,73 @@ game:GetService("RunService").RenderStepped:Connect(function()
         end
 
         Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, TargetPos), getgenv().Smoothness)
+    end
+end
+
+local function ToggleLock()
+    if Locked then
+        Locked = false
+        LockedOn.Text = "Unlocked"
+        LockedOn.TextColor3 = Color3.fromRGB(255, 0, 0)
+        TargetName.Text = "Target: None"
+        DisplayName.Text = "Display Name: None"
+        Circle.BackgroundColor3 = Color3.fromRGB(255, 0, 0) -- Update Circle Color
+    else
+        Target = GetClosestPlayer()
+        if Target then
+            Locked = true
+            LockedOn.Text = "Locked On"
+            LockedOn.TextColor3 = Color3.fromRGB(0, 255, 0)
+            TargetName.Text = "Target: " .. Target.Name
+            DisplayName.Text = "Display Name: " .. Target.DisplayName
+            Circle.BackgroundColor3 = Color3.fromRGB(0, 255, 0) -- Update Circle Color
+        else
+            LockedOn.Text = "No Target Found"
+        end
+    end
+end
+
+-- // Input Listeners
+LoadMobile.MouseButton1Click:Connect(function()
+    VersionSelector:Destroy()
+    Circle.Visible = true
+    Circle.MouseButton1Click:Connect(ToggleLock)
+    LockedOn.Text = "Tappn!"
+end)
+
+LoadPC.MouseButton1Click:Connect(function()
+    VersionSelector:Destroy()
+    UserInputService.InputBegan:Connect(function(input, gameProcessed)
+        if gameProcessed then return end
+        if input.KeyCode == Enum.KeyCode.F then
+            ToggleLock()
+        end
+    end)
+    LockedOn.Text = "Tappn!"
+end)
+
+SmoothnessLabel.FocusLost:Connect(function(enterPressed)
+    if enterPressed then
+        local newSmoothness = tonumber(SmoothnessLabel.Text:match("%d+%.?%d*"))
+        if newSmoothness then
+            getgenv().Smoothness = newSmoothness
+            SmoothnessLabel.Text = "Smoothness: " .. tostring(newSmoothness)
+        end
+    end
+end)
+
+PredictionLabel.FocusLost:Connect(function(enterPressed)
+    if enterPressed then
+        local newPrediction = tonumber(PredictionLabel.Text:match("%d+%.?%d*"))
+        if newPrediction then
+            getgenv().Prediction = newPrediction
+            PredictionLabel.Text = "Prediction: " .. tostring(newPrediction)
+        end
+    end
+end)
+
+RunService.RenderStepped:Connect(function()
+    if Locked then
+        LockOntoPlayer()
     end
 end)
