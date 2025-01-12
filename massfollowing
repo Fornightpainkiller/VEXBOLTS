@@ -1,0 +1,70 @@
+-- // Configuration
+getgenv().Prediction = 0.072
+getgenv().Smoothness = 0.07
+getgenv().JumpOffset = 0.15
+getgenv().FallOffset = 0.15
+
+-- // Variables
+local UIS = game:GetService("UserInputService")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local Mouse = LocalPlayer:GetMouse()
+local Camera = workspace.CurrentCamera
+local CamLockEnabled = false
+local Target
+
+-- // GUI Creation
+local ScreenGui = Instance.new("ScreenGui", game.CoreGui)
+local ToggleCircle = Instance.new("Frame", ScreenGui)
+local UICorner = Instance.new("UICorner", ToggleCircle)
+local UIStroke = Instance.new("UIStroke", ToggleCircle)
+
+ToggleCircle.Name = "ToggleCircle"
+ToggleCircle.Size = UDim2.new(0, 50, 0, 50)
+ToggleCircle.BackgroundColor3 = Color3.fromRGB(100, 100, 255)
+ToggleCircle.Position = UDim2.new(0.5, -25, 0.5, -25)
+ToggleCircle.Active = true
+ToggleCircle.Draggable = true
+
+UICorner.CornerRadius = UDim.new(1, 0)
+UIStroke.Thickness = 2
+UIStroke.Color = Color3.fromRGB(255, 255, 255)
+
+-- // Toggle CamLock
+ToggleCircle.MouseButton1Click:Connect(function()
+    CamLockEnabled = not CamLockEnabled
+    ToggleCircle.BackgroundColor3 = CamLockEnabled and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
+end)
+
+-- // CamLock Logic
+local function GetClosestPlayer()
+    local ClosestDistance, ClosestPlayer = math.huge, nil
+    for _, Player in pairs(Players:GetPlayers()) do
+        if Player ~= LocalPlayer and Player.Character and Player.Character:FindFirstChild("HumanoidRootPart") then
+            local Distance = (Mouse.Hit.p - Player.Character.HumanoidRootPart.Position).Magnitude
+            if Distance < ClosestDistance then
+                ClosestDistance = Distance
+                ClosestPlayer = Player
+            end
+        end
+    end
+    return ClosestPlayer
+end
+
+game:GetService("RunService").RenderStepped:Connect(function()
+    if not CamLockEnabled then return end
+    Target = GetClosestPlayer()
+
+    if Target and Target.Character and Target.Character:FindFirstChild("HumanoidRootPart") then
+        local TargetPart = Target.Character.HumanoidRootPart
+        local TargetPos = TargetPart.Position + (TargetPart.Velocity * getgenv().Prediction)
+
+        if TargetPart.Velocity.Y > 0 then
+            TargetPos = TargetPos + Vector3.new(0, getgenv().JumpOffset, 0)
+        elseif TargetPart.Velocity.Y < 0 then
+            TargetPos = TargetPos - Vector3.new(0, getgenv().FallOffset, 0)
+        end
+
+        Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, TargetPos), getgenv().Smoothness)
+    end
+end)
